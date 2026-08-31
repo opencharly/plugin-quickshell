@@ -1,0 +1,23 @@
+# Makes this plugin repo a PROJECT so its own candy is actually gated — and so consumers
+# can pin it.
+#
+# Without a root charly.yml the repo is "project-less": charly scans NO candies at all, so
+# `charly box validate` at the repo root exits 0 on ANY manifest, including a malformed
+# one, and the stock candy CI step asserts nothing (opencharly/charly#459).
+#
+# It is also what makes an `add_candy:` pin RESOLVE. A consumer pinning
+# `@github.com/opencharly/plugin-quickshell/candy/plugin-quickshell:<tag>` fetches this repo
+# and scans it; with nothing telling charly where to look, the candy downloads and then is
+# absent from the resolved project:
+#
+#     compiling --add-candy "@github.com/opencharly/plugin-quickshell/candy/plugin-quickshell:v2026.243.1500":
+#     candy "..." not in resolved-project envelope
+#
+# Measured on the omarchy desktop bed, which failed at deploy-add for exactly that reason.
+#
+# Declaring discover: is the whole fix. This file declares no entities of its own — it only
+# tells charly where to look.
+version: 2026.232.0520
+discover:
+    - path: candy
+      recursive: true
