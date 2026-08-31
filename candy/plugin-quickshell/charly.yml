@@ -1,0 +1,178 @@
+version: 2026.232.0520
+plugin-quickshell:
+    candy:
+        version: 2026.243.1500
+        description: |-
+            OUT-OF-TREE charly plugin serving the `quickshell` live-deployment check verb — a
+            standalone Go module driving the IPC channel of a Quickshell desktop shell over
+            go-plugin gRPC via the charly plugin SDK. charly's loader fetches this candy's repo,
+            go-builds the provider binary on the HOST, and serves it OUT-OF-PROCESS, so the
+            `quickshell:` verb dispatches through the provider registry exactly like a built-in.
+            .
+            WHY IT IS A VERB AND NOT A `command:` STEP. Quickshell's `qs ipc` reports IPC-level
+            failures — "Target not found.", "Function not found.", argument-count errors — on
+            STDOUT while exiting ZERO. A `command:` step asserting "the menu opened" therefore
+            passes against a shell with no menu plugin loaded, against a typo in the target
+            name, and against an IPC surface that changed underneath it: green, asserting
+            nothing. This verb reads those responses and fails on them, which is the entire
+            difference between the two.
+            .
+            DESKTOP-AGNOSTIC BY CONSTRUCTION. It speaks Quickshell's IPC, not any one desktop's
+            vocabulary: `config:` names the shell directory and `target:`/`function:` name
+            whatever that shell's QML exposes. Omarchy is one caller; the failure strings the
+            verb keys on live in the quickshell binary itself.
+        plugin:
+            source: github.com/opencharly/plugin-quickshell/candy/plugin-quickshell
+            providers:
+                - verb:quickshell
+            # primary: is load-bearing, not sugar-for-taste. charly's pre-parse
+            # collectPluginPrimaries reads it off the RAW yaml, so the scalar form
+            # (`quickshell: ping`) only works when the candy manifest declares it. Without
+            # it an authored shorthand step fails at PARSE time and takes the whole project
+            # load down, not just that step.
+            primary:
+                quickshell: method
+        plan:
+            - check: the quickshell verb dispatches through the provider registry and reaches a live shell
+              id: quickshell-verb-dispatches
+              context:
+                  - runtime
+              # The verb's own smoke assertion. `ping` is the liveness convenience: it calls
+              # the shell's conventional root target, so a PASS proves the plugin loaded, the
+              # executor reverse channel is attached, `qs` is on the venue's PATH, and the
+              # shell answered. Authored as the scalar shorthand, which is what the
+              # `primary:` declaration above makes parseable.
+              eventually: 60s
+              quickshell:
+                  method: ping
+                  config: /usr/share/omarchy/shell
+
+quickshell-skill:
+    skill:
+        name: quickshell
+        family: check
+        owner: plugin-quickshell
+        description: |-
+            MUST be invoked before any work involving: the `quickshell:` check verb — IPC against
+            a Quickshell desktop shell (summoning and dismissing panels, menus, notification
+            surfaces and overlays; asking a shell which plugins it loaded; liveness pings), or
+            `quickshell:` declarative steps inside `check:` blocks. Served out-of-process by
+            `candy/plugin-quickshell`. Desktop-agnostic: it speaks Quickshell's IPC, so it serves
+            omarchy's shell and any other Quickshell desktop alike.
+        content: |
+            # QUICKSHELL — IPC against a Quickshell desktop shell
+
+            ## Overview
+
+            The `quickshell:` check verb drives the control channel of a
+            [Quickshell](https://quickshell.outfoxxed.me) desktop shell — the IPC surface a
+            desktop's panels, menus, notifications and overlays are summoned and dismissed
+            through. It is **NOT a host `charly` subcommand**: it is a declarative check verb
+            served out-of-process by its plugin, parallel to `wl:`, `cdp:` and `dbus:`.
+
+            **It is desktop-agnostic.** The verb speaks Quickshell, not omarchy: `config:` names
+            the shell's config directory and `target:`/`function:` name whatever that shell's QML
+            exposes through an `IpcHandler`.
+
+            ## Why this is a verb and not a `command:` step
+
+            This is the whole justification, and it is worth understanding before authoring:
+
+            **`qs ipc` reports failures on STDOUT and exits ZERO.**
+
+            ```
+            $ qs ipc -p /usr/share/omarchy/shell call -- shell nosuchfunction; echo "exit=$?"
+            Function not found.
+            exit=0
+            ```
+
+            So a `command:` step asserting "the menu opened" PASSES against a shell with no menu
+            plugin loaded, against a typo in the target, and against an IPC surface that changed
+            underneath it. The step is green and asserts nothing.
+
+            `quickshell:` reads those responses and fails on them. The four it keys on —
+            `Target not found.`, `Function not found.`, and the two argument-count errors — are
+            strings in the **quickshell binary itself**, not omarchy's wrapper, which is what
+            keeps the guard desktop-agnostic.
+
+            ## Methods
+
+            | Method | Purpose |
+            |---|---|
+            | `quickshell: ping` | liveness — calls the shell's conventional `shell.ping` |
+            | `quickshell: call` | the generic primitive — invoke `function` on `target` |
+
+            `ping` is a convenience over `call` with overridable defaults; everything a desktop
+            exposes is reachable through `call`.
+
+            ### Fields
+
+            | Field | Meaning |
+            |---|---|
+            | `config:` | **required** — the Quickshell config DIRECTORY (the folder holding `shell.qml`) |
+            | `target:` | the `IpcHandler` target name; defaults to `shell` for `ping` |
+            | `function:` | the function to invoke; required for `call` |
+            | `args:` | positional arguments; a JSON payload is just a string argument |
+            | `wayland_display:` | override display discovery (see below) |
+
+            `config:` is required because `qs` matches instances BY CONFIG PATH, and a step
+            arriving from outside the session has no ambient one.
+
+            ## Authoring
+
+            ```yaml
+            # liveness — the scalar shorthand needs the fields, so use the map form
+            - check: the shell answers a ping
+              context: [runtime]
+              eventually: 60s
+              quickshell:
+                method: ping
+                config: /usr/share/omarchy/shell
+
+            # every core plugin is loaded, asserted in ONE step
+            - check: the core shell plugins are loaded
+              context: [runtime]
+              quickshell:
+                method: call
+                config: /usr/share/omarchy/shell
+                target: shell
+                function: listPlugins
+              stdout:
+                - contains: omarchy.bar
+                - contains: omarchy.menu
+
+            # summon a surface, with a JSON payload
+            - check: the root menu opens
+              context: [runtime]
+              quickshell:
+                method: call
+                config: /usr/share/omarchy/shell
+                target: shell
+                function: summon
+                args: ['omarchy.menu', '{"menu":"root"}']
+            ```
+
+            ## The display, and why steps over SSH need it
+
+            `qs` matches instances by `WAYLAND_DISPLAY`, and a check step arriving over SSH has
+            none. The verb recovers it from `XDG_RUNTIME_DIR` automatically — without that it
+            would fail on exactly the guests it is most useful for. Set `wayland_display:` only
+            to override that discovery.
+
+            ## Pairing it with `wl:`
+
+            `quickshell:` drives the shell; `wl:` observes the compositor. They answer different
+            questions and the strong assertions use both:
+
+            ```yaml
+            - check: the menu opens            # quickshell: DRIVE it
+              quickshell: {method: call, config: …, target: shell, function: summon, args: ['omarchy.menu']}
+            - check: its surface is mapped     # wl: OBSERVE the result
+              wl: hypr-layers
+              stdout: [{contains: omarchy-menu}]
+            - check: and it actually rendered  # wl: + OCR: prove it DREW
+              wl: {method: screenshot, artifact: /tmp/m.png, artifact_contains_text: Apps}
+            ```
+
+            A shell can accept an IPC call and render nothing; a surface can map and draw
+            nothing. See `/charly-check:wl` for the layer and OCR halves.
