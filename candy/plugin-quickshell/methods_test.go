@@ -169,3 +169,45 @@ func TestIPCCall_RealResponsePasses(t *testing.T) {
 		t.Errorf("output = %q, want pong", out)
 	}
 }
+
+// runtime_dir addresses the venue where the SHELL's XDG_RUNTIME_DIR is not the one a check
+// step inherits. Measured on omarchy-cstream: the compositor and its shell run under
+// /tmp/cstream-rt while an exec into the container gets /tmp/xdg-runtime, and every call
+// fails with "No running instances" until the step names the shell's dir.
+func TestIPCCommand_ExportsRuntimeDir(t *testing.T) {
+	got := ipcCommand(&params.QuickshellInput{
+		Config: "/c", RuntimeDir: "/tmp/cstream-rt", WaylandDisplay: "wayland-2",
+	}, "shell", "ping")
+	if !strings.Contains(got, "export XDG_RUNTIME_DIR='/tmp/cstream-rt'") {
+		t.Errorf("runtime dir not exported:\n  %s", got)
+	}
+	// Both are usually needed together — qs filters instances by display AND finds them
+	// through the runtime dir, so one without the other still fails.
+	if !strings.Contains(got, "export WAYLAND_DISPLAY='wayland-2'") {
+		t.Errorf("display not exported alongside the runtime dir:\n  %s", got)
+	}
+	if strings.Index(got, "XDG_RUNTIME_DIR") > strings.Index(got, "WAYLAND_DISPLAY") {
+		t.Errorf("runtime dir must be exported BEFORE the display, since discovery reads it:\n  %s", got)
+	}
+}
+
+// With no runtime_dir the command is unchanged — the field is opt-in, so every existing
+// step keeps its exact behaviour.
+func TestIPCCommand_RuntimeDirIsOptIn(t *testing.T) {
+	got := ipcCommand(&params.QuickshellInput{Config: "/c", WaylandDisplay: "wayland-1"}, "shell", "ping")
+	if strings.Contains(got, "export XDG_RUNTIME_DIR=") {
+		t.Errorf("runtime dir exported without being asked for:\n  %s", got)
+	}
+}
+
+// The discovery branch reads XDG_RUNTIME_DIR, so an explicit runtime_dir must still reach
+// it when no display is given.
+func TestIPCCommand_RuntimeDirFeedsDiscovery(t *testing.T) {
+	got := ipcCommand(&params.QuickshellInput{Config: "/c", RuntimeDir: "/tmp/cstream-rt"}, "shell", "ping")
+	if !strings.Contains(got, "export XDG_RUNTIME_DIR='/tmp/cstream-rt'") {
+		t.Fatalf("runtime dir not exported:\n  %s", got)
+	}
+	if !strings.Contains(got, "WAYLAND_DISPLAY:-") {
+		t.Errorf("discovery branch missing, so the exported runtime dir feeds nothing:\n  %s", got)
+	}
+}
