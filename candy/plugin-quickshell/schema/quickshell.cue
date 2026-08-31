@@ -35,4 +35,18 @@
 	// XDG_RUNTIME_DIR", which is what a step running over SSH needs: qs matches
 	// instances by display and an SSH session has none.
 	wayland_display?: string @go(WaylandDisplay)
+	// runtime_dir — the XDG_RUNTIME_DIR the SHELL registered under, when that differs
+	// from the one a check step inherits. Empty means "use the step's own".
+	//
+	// qs finds instances through $XDG_RUNTIME_DIR, so the two have to agree. They do
+	// not in every venue: a nested-compositor pod runs the compositor and its shell
+	// under a dedicated runtime dir (omarchy-cstream uses /tmp/cstream-rt) while an
+	// exec into that container inherits a different one. Measured there: with the
+	// step's own dir, `qs list --all` reports "No running instances" and every call
+	// fails; with the shell's, the same call answers "ok".
+	//
+	// It pairs with wayland_display, and both are usually needed together — qs filters
+	// instances by DISPLAY as well as by runtime dir, so getting one right and the
+	// other wrong still fails, with a different message each way.
+	runtime_dir?: string @go(RuntimeDir)
 }

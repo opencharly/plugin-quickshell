@@ -44,4 +44,5 @@ type QuickshellInput struct {
 	// XDG_RUNTIME_DIR", which is what a step running over SSH needs: qs matches
 	// instances by display and an SSH session has none.
 	WaylandDisplay string `yaml:"wayland_display,omitempty" json:"wayland_display,omitempty"`
+	RuntimeDir     string `yaml:"runtime_dir,omitempty" json:"runtime_dir,omitempty"`
 }

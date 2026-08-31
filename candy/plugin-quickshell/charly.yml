@@ -1,7 +1,7 @@
 version: 2026.232.0520
 plugin-quickshell:
     candy:
-        version: 2026.243.1645
+        version: 2026.243.1938
         description: |-
             OUT-OF-TREE charly plugin serving the `quickshell` live-deployment check verb — a
             standalone Go module driving the IPC channel of a Quickshell desktop shell over

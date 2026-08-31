@@ -72,6 +72,14 @@ func resolveCall(in *params.QuickshellInput) (target, function string, err error
 // display. Without this the verb fails on every guest it is most useful for.
 func ipcCommand(in *params.QuickshellInput, target, function string) string {
 	var b strings.Builder
+	// The shell's runtime dir, when it differs from the one this step inherits. qs
+	// finds instances through XDG_RUNTIME_DIR, so a venue that runs the compositor
+	// under a dedicated dir (omarchy-cstream: /tmp/cstream-rt) is unreachable without
+	// it — `qs list --all` reports "No running instances" from the step's own dir.
+	// Exported FIRST, because the WAYLAND_DISPLAY discovery below reads it.
+	if in.RuntimeDir != "" {
+		fmt.Fprintf(&b, "export XDG_RUNTIME_DIR=%s; ", shellQuote(in.RuntimeDir))
+	}
 	if in.WaylandDisplay != "" {
 		fmt.Fprintf(&b, "export WAYLAND_DISPLAY=%s; ", shellQuote(in.WaylandDisplay))
 	} else {
