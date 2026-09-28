@@ -17,7 +17,6 @@
 #
 # Declaring discover: is the whole fix. This file declares no entities of its own — it only
 # tells charly where to look.
-version: 2026.232.0520
 discover:
     - path: candy
       recursive: true
