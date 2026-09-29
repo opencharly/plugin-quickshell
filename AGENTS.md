@@ -3,11 +3,13 @@
 Standalone plugin repo for the `quickshell` check verb (`verb:quickshell`). The
 plugin is a Go module at `candy/plugin-quickshell/` (module path
 `github.com/opencharly/plugin-quickshell/candy/plugin-quickshell`); the root
-`charly.yml` declares `discover: candy` **and** the `quickshell-skill` `skill:`
-entity (the corpus source for `/charly-check:quickshell`).
+`charly.yml` declares `discover: candy` so the repo is a project, and the candy
+manifest carries the `quickshell-skill` `skill:` entity (the corpus source for
+`/charly-check:quickshell`).
 
 Canonical files:
 
+- `charly.yml` — the root project manifest (`discover: candy` only).
 - `candy/plugin-quickshell/charly.yml` — the `plugin-quickshell:` candy entity
   (`plugin:` block, `primary:`, `plan:` check) + the `quickshell-skill` skill
   entity.

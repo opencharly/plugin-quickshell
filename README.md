@@ -66,8 +66,9 @@ assert the ANSWER — a shell can accept an IPC call and render nothing.
 - `candy/plugin-quickshell/` — the plugin module: `methods.go` (the `ping`/`call`
   surface), `provider.go` / `plugin.go`, `schema/quickshell.cue` (the
   self-contained input schema), `params/cue_types_gen.go`, `cmd/serve/main.go`.
-- `charly.yml` — the root project manifest (`discover: candy` + the
-  `quickshell-skill` skill entity).
+- `charly.yml` — the root project manifest (`discover: candy` only); the
+  `quickshell-skill` `skill:` entity lives in the candy manifest
+  `candy/plugin-quickshell/charly.yml`.
 - `.github/workflows/tag-on-merge.yml` — CalVer tag + `CHANGELOG/` on merge.
 
 ## Related
