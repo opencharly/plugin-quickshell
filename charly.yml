@@ -10,7 +10,7 @@
 # and scans it; with nothing telling charly where to look, the candy downloads and then is
 # absent from the resolved project:
 #
-#     compiling --add-candy "@github.com/opencharly/plugin-quickshell/candy/plugin-quickshell:v2026.243.1500":
+#     compiling --add-candy "@github.com/opencharly/plugin-quickshell/candy/plugin-quickshell:v2026.272.0445":
 #     candy "..." not in resolved-project envelope
 #
 # Measured on the omarchy desktop bed, which failed at deploy-add for exactly that reason.
